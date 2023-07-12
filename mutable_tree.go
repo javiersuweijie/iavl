@@ -193,6 +193,8 @@ func (tree *MutableTree) Iterate(fn func(key []byte, value []byte) bool) (stoppe
 		return tree.ImmutableTree.Iterate(fn)
 	}
 
+	tree.mtx.Lock()
+	defer tree.mtx.Unlock()
 	itr := NewUnsavedFastIterator(nil, nil, true, tree.ndb, tree.unsavedFastNodeAdditions, tree.unsavedFastNodeRemovals)
 	defer itr.Close()
 	for ; itr.Valid(); itr.Next() {
@@ -213,6 +215,8 @@ func (tree *MutableTree) Iterator(start, end []byte, ascending bool) (dbm.Iterat
 		}
 
 		if isFastCacheEnabled {
+			tree.mtx.Lock()
+			defer tree.mtx.Unlock()
 			return NewUnsavedFastIterator(start, end, ascending, tree.ndb, tree.unsavedFastNodeAdditions, tree.unsavedFastNodeRemovals), nil
 		}
 	}
@@ -965,6 +969,8 @@ func (tree *MutableTree) getUnsavedFastNodeRemovals() map[string]interface{} {
 }
 
 func (tree *MutableTree) addUnsavedAddition(key []byte, node *FastNode) {
+	tree.mtx.Lock()
+	defer tree.mtx.Unlock()
 	skey := unsafeToStr(key)
 	delete(tree.unsavedFastNodeRemovals, skey)
 	tree.unsavedFastNodeAdditions[skey] = node
@@ -972,6 +978,8 @@ func (tree *MutableTree) addUnsavedAddition(key []byte, node *FastNode) {
 
 func (tree *MutableTree) saveFastNodeAdditions() error {
 	keysToSort := make([]string, 0, len(tree.unsavedFastNodeAdditions))
+	tree.mtx.Lock()
+	defer tree.mtx.Unlock()
 	for key := range tree.unsavedFastNodeAdditions {
 		keysToSort = append(keysToSort, key)
 	}
